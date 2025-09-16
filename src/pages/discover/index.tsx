@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 /**
  * Discover page (UI scaffold with minimal mock data)
@@ -90,6 +92,10 @@ const DiscoverPage: React.FC = () => {
   // ZH: 列表状态；未配置接口则回退到本地数据
   const [items, setItems] = useState<DiscoverItem[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  // EN: local toolbar states / ZH: 本地工具条状态
+  const [query, setQuery] = useState<string>("");
+  const [listedOnly, setListedOnly] = useState<boolean>(true);
+  const [sortBy, setSortBy] = useState<string>("popularity");
 
   useEffect(() => {
     const url = (import.meta as any).env?.VITE_DOMA_GRAPHQL_URL as string | undefined;
@@ -174,18 +180,54 @@ const DiscoverPage: React.FC = () => {
     <div className="p-4 md:p-6 lg:p-8">
       {/* Title / 标题 */}
       <h1 className="text-2xl md:text-3xl font-bold mb-4">Discover</h1>
-      {/* Toolbar placeholder / 工具条占位 */}
-      <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-        <span>Trending</span>
-        <span>•</span>
-        <span>New</span>
-        <span>•</span>
-        <span>Listed Only</span>
+      {/* Toolbar / 工具条 */}
+      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search domains..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="popularity">Popularity</SelectItem>
+              <SelectItem value="price-high">Price: High to Low</SelectItem>
+              <SelectItem value="price-low">Price: Low to High</SelectItem>
+              <SelectItem value="length">Length</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={listedOnly}
+              onChange={(e) => setListedOnly(e.target.checked)}
+            />
+            <span className="text-muted-foreground">Listed Only</span>
+          </div>
+        </div>
       </div>
 
       {/* Grid / 网格列表 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {(items || mockItems).map((it) => {
+        {(items || mockItems)
+          // EN: local filter by name / ZH: 名称本地过滤
+          .filter((it) => it.name.toLowerCase().includes(query.trim().toLowerCase()))
+          // EN: local listed filter / ZH: 上架过滤
+          .filter((it) => (listedOnly ? it.price > 0 : true))
+          // EN: local sort / ZH: 本地排序
+          .sort((a, b) => {
+            if (sortBy === "price-high") return b.price - a.price;
+            if (sortBy === "price-low") return a.price - b.price;
+            if (sortBy === "length") return a.length - b.length;
+            return 0; // popularity: keep as-is
+          })
+          .map((it) => {
           const hasListing = it.price > 0;
           return (
             <Card
